@@ -121,7 +121,7 @@ async function enviarCorreoAprobador(correo, ordenCompra) {
       },
       saveToSentItems: "true", // Guarda el correo en "Elementos enviados"
     });
-
+// codigo para
     console.log('Correo enviado:', response);
   } catch (error) {
     console.error('Error al enviar el correo:', error);
