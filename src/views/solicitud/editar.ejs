@@ -1,0 +1,279 @@
+<!-- views/solicitud/editar.ejs -->
+<%- include('../partials/header', { title: 'Editar Solicitud' }) %>
+<%- include('../partials/navbar') %>
+<%- include('../partials/sidebar') %>
+<%- include('../partials/content-wrapper-open') %>
+
+<style>
+  .img-fluid {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  iframe {
+    width: 100%;
+    height: 800px;
+    border: none;
+  }
+
+  .preview-container {
+    display: flex;
+    justify-content: center;
+  }
+
+  @media (max-width: 768px) {
+    iframe {
+      height: 600px;
+    }
+  }
+
+  .text-word {
+    color: #2B579A !important;
+  }
+
+  .btn-toggle-preview {
+    display: flex;
+    align-items: center;
+  }
+
+  .btn-toggle-preview i {
+    margin-right: 5px;
+  }
+</style>
+
+<div class="content-wrapper">
+  <div class="container-xxl flex-grow-1 container-p-y">
+    <div class="app-solicitud-editar">
+      <% if (successMessage && successMessage.length > 0) { %>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+          <%= successMessage %>
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+        </div>
+      <% } %>
+      <% if (errorMessage && errorMessage.length > 0) { %>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+          <%= errorMessage %>
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+        </div>
+      <% } %>
+
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="mb-0">Editar Solicitud</h4>
+        <a href="/solicitudes-cancelar-edicion/<%= solicitud.id %>" class="btn btn-secondary">
+          <i class="fas fa-arrow-left me-1"></i> Regresar
+        </a>
+      </div>
+
+      <form action="/solicitudes-editar/<%= solicitud.id %>" method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
+        <div class="card shadow-sm mb-4">
+          <div class="card-body">
+            <div class="mb-4">
+              <label for="asunto" class="form-label fw-bold">Asunto <span class="text-danger">*</span></label>
+              <input
+                type="text"
+                class="form-control <%= errors && errors.asunto ? 'is-invalid' : '' %>"
+                id="asunto"
+                name="asunto"
+                value="<%= solicitud.asunto %>"
+                required
+              />
+              <% if (errors && errors.asunto) { %>
+                <div class="invalid-feedback"><%= errors.asunto %></div>
+              <% } %>
+            </div>
+
+            <div class="mb-4">
+              <label for="descripcion" class="form-label fw-bold">Descripción <span class="text-danger">*</span></label>
+              <textarea
+                class="form-control <%= errors && errors.descripcion ? 'is-invalid' : '' %>"
+                id="descripcion"
+                name="descripcion"
+                rows="4"
+                required
+              ><%= solicitud.descripcion %></textarea>
+              <% if (errors && errors.descripcion) { %>
+                <div class="invalid-feedback"><%= errors.descripcion %></div>
+              <% } %>
+            </div>
+
+            <div class="mb-4">
+              <h6 class="fw-bold text-primary">Archivos Adjuntos Existentes</h6>
+              <%
+                let archivos = solicitud.archivos.filter(archivo => archivo.eliminado === 0);
+              %>
+              <% if (archivos && archivos.length > 0) { %>
+                <ul class="list-group list-group-flush mb-3">
+                  <% archivos.forEach((archivo) => { 
+                    const blobName = archivo.url.split('/').pop();
+                    const parts = blobName.split('-');
+                    const originalFileName = parts.slice(2).join('-');
+                    const extension = originalFileName.split('.').pop().toLowerCase();
+                    let iconClass = 'fas fa-file';
+                    if (['pdf'].includes(extension)) iconClass = 'fas fa-file-pdf text-danger';
+                    else if (['jpg', 'jpeg', 'png'].includes(extension)) iconClass = 'fas fa-file-image text-info';
+                    else if (['doc', 'docx'].includes(extension)) iconClass = 'fas fa-file-word text-word';
+                    else if (['xlsx', 'xls'].includes(extension)) iconClass = 'fas fa-file-excel text-success';
+                  %>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                      <a href="/solicitudes/<%= solicitud.id %>/descargar/<%= encodeURIComponent(blobName) %>" class="text-decoration-none">
+                        <i class="<%= iconClass %> me-2"></i> <%= originalFileName %>
+                      </a>
+                      <button type="button" class="btn btn-sm btn-danger" onclick="removeExistingFile('<%= archivo.url %>', this)">
+                        <i class="fas fa-times"></i>
+                      </button>
+                    </li>
+                  <% }); %>
+                </ul>
+              <% } else { %>
+                <p class="text-muted">No hay archivos adjuntos existentes.</p>
+              <% } %>
+              <input type="hidden" name="deletedFiles" id="deletedFiles" value="[]">
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label" for="archivos">Subir Nuevos Archivos</label>
+              <input
+                type="file"
+                class="form-control d-none"
+                id="archivos"
+                name="archivos"
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xlsx,.xls"
+                multiple
+                aria-label="Subir Archivos"
+                onchange="handleFileSelect(this)"
+              />
+              <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('archivos').click()">
+                <i class="fas fa-upload me-1"></i> Seleccionar archivos
+              </button>
+              <small class="form-text text-muted">
+                Formatos permitidos: PDF, DOC, DOCX, XLSX, XLS, JPG, JPEG, PNG (máximo 10 archivos y 10 MB en total)
+              </small>
+              <% if (errors && errors.archivos) { %>
+                <div class="invalid-feedback"><%= errors.archivos %></div>
+              <% } %>
+              <ul id="new-file-list" class="list-group mt-2"></ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2">
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-1"></i> Guardar Cambios
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div class="content-backdrop fade"></div>
+</div>
+
+<script>
+  (function () {
+    'use strict';
+    var forms = document.querySelectorAll('.needs-validation');
+    Array.prototype.slice.call(forms).forEach(function (form) {
+      form.addEventListener('submit', function (event) {
+        if (!form.checkValidity()) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        form.classList.add('was-validated');
+      }, false);
+    });
+  })();
+
+  let selectedFiles = [];
+  const archivos = <%- JSON.stringify(solicitud.archivos.filter(archivo => archivo.eliminado === 0) || []) %>;
+
+  function handleFileSelect(input) {
+    const files = Array.from(input.files);
+    const maxFiles = 10;
+    const maxSizeTotal = 10 * 1024 * 1024;
+    const allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xlsx', 'xls'];
+    const existingFilesCount = archivos.length;
+
+    if (files.length + selectedFiles.length + existingFilesCount > maxFiles) {
+      alert(`Puedes subir un máximo de ${maxFiles} archivos en total.`);
+      input.value = '';
+      return;
+    }
+
+    let totalSize = selectedFiles.reduce((sum, file) => sum + file.size, 0);
+    for (const file of files) {
+      const extension = file.name.split('.').pop().toLowerCase();
+      if (!allowedExtensions.includes(extension)) {
+        alert(`El archivo "${file.name}" tiene una extensión no permitida.`);
+        input.value = '';
+        return;
+      }
+      totalSize += file.size;
+      if (totalSize > maxSizeTotal) {
+        alert('El tamaño total de los archivos no puede superar los 10 MB.');
+        input.value = '';
+        return;
+      }
+      selectedFiles.push(file);
+    }
+
+    updateNewFileList();
+    input.value = '';
+  }
+
+  function updateNewFileList() {
+    const newFileList = document.getElementById('new-file-list');
+    newFileList.innerHTML = '';
+
+    selectedFiles.forEach((file, index) => {
+      const listItem = document.createElement('li');
+      listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+      listItem.textContent = file.name;
+
+      const removeButton = document.createElement('button');
+      removeButton.className = 'btn btn-sm btn-danger';
+      removeButton.innerHTML = '<i class="fas fa-times"></i>';
+      removeButton.onclick = () => removeNewFile(index);
+
+      listItem.appendChild(removeButton);
+      newFileList.appendChild(listItem);
+    });
+  }
+
+  function removeNewFile(index) {
+    selectedFiles.splice(index, 1);
+    updateNewFileList();
+  }
+
+  function removeExistingFile(fileUrl, button) {
+    const deletedFilesInput = document.getElementById("deletedFiles");
+    let deletedFiles = JSON.parse(deletedFilesInput.value);
+    deletedFiles.push(fileUrl);
+    deletedFilesInput.value = JSON.stringify(deletedFiles);
+    button.closest("li").remove();
+  }
+
+  document.querySelector("form").addEventListener("submit", function(event) {
+    const dataTransfer = new DataTransfer();
+    selectedFiles.forEach(file => dataTransfer.items.add(file));
+    document.getElementById("archivos").files = dataTransfer.files;
+  });
+
+  // Script para liberar el bloqueo cuando se cierra la página
+  (function () {
+    function liberarBloqueo() {
+      const encodedId = "<%= solicitud.id %>";
+      const url = `/solicitudes-liberar-edicion/${encodedId}`;
+
+      navigator.sendBeacon(url);
+    }
+
+    window.addEventListener("beforeunload", liberarBloqueo);
+    window.addEventListener("unload", liberarBloqueo);
+  })();
+</script>
+
+<%- include('../partials/footer-text') %>
+<%- include('../partials/footer') %>
+<%- include('../partials/content-wrapper-close') %>

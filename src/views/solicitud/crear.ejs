@@ -1,0 +1,191 @@
+<!-- views/solicitud/crear.ejs -->
+<%- include('../partials/header', { title: 'Crear Solicitud' }) %>
+<%- include('../partials/navbar') %>
+<%- include('../partials/sidebar') %>
+<%- include('../partials/content-wrapper-open') %>
+
+<div class="content-wrapper">
+  <div class="container-xxl flex-grow-1 container-p-y">
+    <div class="app-solicitud">
+      <% if (successMessage && successMessage.length > 0) { %>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+          <%= successMessage %>
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+        </div>
+      <% } %>
+      <% if (errorMessage && errorMessage.length > 0) { %>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+          <%= errorMessage %>
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+        </div>
+      <% } %>
+
+      <form
+        action="/solicitudes-crear"
+        method="POST"
+        enctype="multipart/form-data"
+        class="needs-validation"
+        novalidate
+      >
+        <div class="d-flex flex-column align-items-start mb-4">
+          <h4 class="mb-3">Crear Solicitud</h4>
+          <p class="mb-4">Solicitud para productos o servicios.</p>
+          <a href="/solicitudes" class="btn btn-secondary mb-3">
+            <i class="fas fa-arrow-left me-1"></i> Regresar
+          </a>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="asunto">Asunto <span class="text-danger">*</span></label>
+          <input
+            type="text"
+            class="form-control <%= errors.asunto ? 'is-invalid' : '' %>"
+            id="asunto"
+            placeholder="Indica el asunto de la solicitud"
+            name="asunto"
+            aria-label="Asunto de la Solicitud"
+            value="<%= typeof asunto !== 'undefined' ? asunto : '' %>"
+            required
+          />
+          <% if (errors.asunto) { %>
+            <div class="invalid-feedback"><%= errors.asunto %></div>
+          <% } %>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="descripcion">Descripción <span class="text-danger">*</span></label>
+          <textarea
+            class="form-control <%= errors.descripcion ? 'is-invalid' : '' %>"
+            id="descripcion"
+            placeholder="Describe los detalles de la solicitud"
+            name="descripcion"
+            rows="4"
+            required
+          ><%= typeof descripcion !== 'undefined' ? descripcion : '' %></textarea>
+          <% if (errors.descripcion) { %>
+            <div class="invalid-feedback"><%= errors.descripcion %></div>
+          <% } %>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="archivos">Subir Archivos</label>
+          <input
+            type="file"
+            class="form-control d-none"
+            id="archivos"
+            name="archivos"
+            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xlsx,.xls"
+            multiple
+            aria-label="Subir Archivos"
+            onchange="handleFileSelect(this)"
+          />
+          <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('archivos').click()">
+            <i class="fas fa-upload me-1"></i> Seleccionar archivos
+          </button>
+          <small class="form-text text-muted">
+            Formatos permitidos: PDF, DOC, DOCX, XLSX, XLS, JPG, JPEG, PNG (máximo 10 archivos y 10 MB en total)
+          </small>
+          <% if (errors.archivos) { %>
+            <div class="invalid-feedback"><%= errors.archivos %></div>
+          <% } %>
+          <ul id="file-list" class="list-group mt-2"></ul>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-4">
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-1"></i> Crear
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div class="content-backdrop fade"></div>
+</div>
+
+<script>
+  (function () {
+    "use strict";
+    var forms = document.querySelectorAll(".needs-validation");
+    Array.prototype.slice.call(forms).forEach(function (form) {
+      form.addEventListener(
+        "submit",
+        function (event) {
+          if (!form.checkValidity()) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+          form.classList.add("was-validated");
+        },
+        false
+      );
+    });
+  })();
+
+  let selectedFiles = [];
+
+  function handleFileSelect(input) {
+    const files = Array.from(input.files);
+    const maxFiles = 10;
+    const maxSizeTotal = 10 * 1024 * 1024;
+    const allowedExtensions = ["pdf", "jpg", "jpeg", "png", "doc", "docx", "xlsx", "xls"];
+
+    if (files.length + selectedFiles.length > maxFiles) {
+      alert(`Puedes subir un máximo de ${maxFiles} archivos.`);
+      input.value = "";
+      return;
+    }
+
+    let totalSize = selectedFiles.reduce((sum, file) => sum + file.size, 0);
+    for (const file of files) {
+      if (!allowedExtensions.includes(file.name.split('.').pop().toLowerCase())) {
+        alert(`El archivo "${file.name}" tiene una extensión no permitida.`);
+        input.value = "";
+        return;
+      }
+      totalSize += file.size;
+      if (totalSize > maxSizeTotal) {
+        alert("El tamaño total de los archivos no puede superar los 10 MB.");
+        input.value = "";
+        return;
+      }
+      selectedFiles.push(file);
+    }
+
+    updateFileList();
+    input.value = "";
+  }
+
+  function updateFileList() {
+    const fileList = document.getElementById("file-list");
+    fileList.innerHTML = "";
+
+    selectedFiles.forEach((file, index) => {
+      const listItem = document.createElement("li");
+      listItem.className = "list-group-item d-flex justify-content-between align-items-center";
+      listItem.textContent = file.name;
+
+      const removeButton = document.createElement("button");
+      removeButton.className = "btn btn-sm btn-danger";
+      removeButton.innerHTML = '<i class="fas fa-times"></i>';
+      removeButton.onclick = () => removeFile(index);
+
+      listItem.appendChild(removeButton);
+      fileList.appendChild(listItem);
+    });
+  }
+
+  function removeFile(index) {
+    selectedFiles.splice(index, 1);
+    updateFileList();
+  }
+
+  document.querySelector("form").addEventListener("submit", function(event) {
+    const dataTransfer = new DataTransfer();
+    selectedFiles.forEach(file => dataTransfer.items.add(file));
+    document.getElementById("archivos").files = dataTransfer.files;
+  });
+</script>
+
+<%- include('../partials/footer-text') %>
+<%- include('../partials/footer') %>
+<%- include('../partials/content-wrapper-close') %>
